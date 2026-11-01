@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#070b14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>JARVIS v2.0</title>
+<style>
+:root {
+  --bg: #070b14;
+  --panel: rgba(16, 25, 43, 0.88);
+  --card: #131f36;
+  --card-h: #192947;
+  --border: #233559;
+  --tx: #e4eefb;
+  --mut: #8499b8;
+  --ac: #00e5ff;
+  --ac-glow: rgba(0, 229, 255, 0.28);
+  --bad: #ff5c77;
+  --ok: #38ef7d;
+  --code: #050811;
+  --radius: 14px;
+}
+body[data-t="amber"] { --ac: #ffb347; --ac-glow: rgba(255, 179, 71, 0.28); }
+body[data-t="violet"] { --ac: #b794ff; --ac-glow: rgba(183, 148, 255, 0.28); }
+body[data-t="mint"] { --ac: #38ef7d; --ac-glow: rgba(56, 239, 125, 0.28); }
+body[data-t="crimson"] { --ac: #ff4b72; --ac-glow: rgba(255, 75, 114, 0.28); }
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; height: 100dvh; margin: 0; background: var(--bg); color: var(--tx); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* Buttons & Inputs */
+button {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 8px 13px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  user-select: none;
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+button:hover { border-color: var(--ac); background: var(--card-h); }
+button:active { transform: scale(0.96); }
+button.p { background: var(--ac); color: #031017; border-color: var(--ac); font-weight: 700; box-shadow: 0 2px 12px var(--ac-glow); }
+button.d { color: var(--bad); border-color: rgba(255, 92, 119, 0.35); }
+button.on { background: var(--ac); color: #031017; border-color: var(--ac); font-weight: 700; }
+button:disabled { opacity: 0.45; pointer-events: none; }
+
+input, select, textarea {
+  background: var(--code);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 10px 12px;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--ac);
+  box-shadow: 0 0 0 2px var(--ac-glow);
+}
+textarea { resize: vertical; }
+
+/* Header */
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  z-index: 5;
+}
+.orb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--ac);
+  box-shadow: 0 0 14px var(--ac), inset 0 0 8px var(--ac);
+  transition: 0.3s;
+  flex-shrink: 0;
+  position: relative;
+}
+.orb::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--ac);
+  opacity: 0.35;
+}
+.orb.listening { animation: pulse 0.9s infinite ease-in-out; border-color: var(--bad); box-shadow: 0 0 16px var(--bad), inset 0 0 8px var(--bad); }
+.orb.speaking { animation: pulse 0.45s infinite ease-in-out; }
+.orb.processing { animation: spin 0.9s linear infinite; border-top-color: transparent; }
+@keyframes pulse { 50% { transform: scale(1.22); opacity: 0.65; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.brand { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.brand-row { display: flex; align-items: center; gap: 7px; }
+h1 { font-size: 16.5px; letter-spacing: 0.14em; margin: 0; font-weight: 800; color: var(--tx); }
+.mode-pill {
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--ac-glow);
+  color: var(--ac);
+  border: 1px solid var(--ac);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+#st { color: var(--mut); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-btns { display: flex; gap: 6px; align-items: center; }
+.icon-btn { padding: 7px 10px; border-radius: 20px; font-size: 12.5px; }
+
+/* Banners */
+#scr { display: none; align-items: center; justify-content: space-between; color: var(--bad); font-size: 12.5px; padding: 6px 14px; background: rgba(255, 92, 119, 0.14); border-bottom: 1px solid rgba(255, 92, 119, 0.3); }
+
+/* Main & Views */
+main { flex: 1; min-height: 0; position: relative; background: radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.05), transparent 65%); }
+.v { display: none; position: absolute; inset: 0; flex-direction: column; }
+.v.a { display: flex; }
+.pad { padding: 14px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+
+/* Chat Messages */
+#msgs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+.m {
+  max-width: 92%;
+  padding: 11px 14px;
+  border-radius: 16px;
+  border-top-left-radius: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  align-self: flex-start;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  line-height: 1.52;
+}
+.m.u {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #103554, #0d2740);
+  border-color: rgba(0, 229, 255, 0.35);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 4px;
+}
+.m.e { border-color: var(--bad); color: #ffb3c0; background: rgba(65, 16, 26, 0.7); }
+.m-imgs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.m-imgs img { max-height: 150px; max-width: 100%; border-radius: 9px; border: 1px solid var(--border); object-fit: cover; cursor: pointer; }
+.m-aud { font-size: 12px; color: var(--ac); background: var(--code); padding: 5px 10px; border-radius: 8px; margin-bottom: 6px; display: inline-block; }
+.m-foot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.m-foot button { font-size: 11.5px; padding: 3px 9px; border-radius: 8px; }
+
+/* Code Blocks */
+pre {
+  background: var(--code);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 36px 12px 12px;
+  overflow-x: auto;
+  margin: 10px 0;
+  position: relative;
+  font: 12.5px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre;
+}
+.code-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--mut);
+}
+.code-btns { display: flex; gap: 4px; }
+.code-btns button { font-size: 11px; padding: 2px 7px; border-radius: 6px; }
+code { background: var(--code); padding: 2px 5px; border-radius: 5px; font: 13px ui-monospace, Consolas, monospace; color: var(--ac); }
+
+/* Horizontal Scroll Chips */
+.chips-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 12px;
+  background: rgba(11, 17, 30, 0.65);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  scrollbar-width: none;
+}
+.chips-scroll::-webkit-scrollbar { display: none; }
+.chips-scroll button { font-size: 12px; padding: 5px 10px; border-radius: 18px; flex-shrink: 0; }
+
+/* Attachment Preview Strip */
+#att-strip {
+  display: none;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--code);
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+  align-items: center;
+}
+.att-item {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.att-item img { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; }
+.att-item .rm-att {
+  background: var(--bad);
+  color: #fff;
+  border: 0;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Bottom Chat Input Bar */
+.bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--panel);
+  align-items: flex-end;
+  border-top: 1px solid var(--border);
+}
+.bar textarea {
+  max-height: 115px;
+  resize: none;
+  padding: 9px 11px;
+  border-radius: 14px;
+  font-size: 14.5px;
+  line-height: 1.35;
+}
+.bar-btn { width: 38px; height: 38px; padding: 0; border-radius: 12px; flex-shrink: 0; font-size: 16px; }
+#mic.on { background: var(--bad); border-color: var(--bad); color: #fff; animation: pulse 1s infinite; }
+
+/* Navigation Bar */
+nav {
+  display: flex;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  order: 3;
+  z-index: 5;
+}
+nav button {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  padding: 10px 4px;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--mut);
+}
+nav button .ico { font-size: 17px; }
+nav button.a { color: var(--ac); font-weight: 700; box-shadow: inset 0 2px 0 var(--ac); background: rgba(0, 229, 255, 0.04); }
+
+/* Helpers & Grids */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.chips button { font-size: 12.5px; padding: 6px 11px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.row > * { flex: 0 0 auto; }
+.row > .g { flex: 1; min-width: 140px; }
+label { display: block; color: var(--mut); font-size: 12.5px; margin: 12px 0 4px; font-weight: 600; }
+h3 { margin: 18px 0 6px; color: var(--ac); font-weight: 700; font-size: 14.5px; letter-spacing: 0.03em; text-transform: uppercase; }
+.card-box { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin: 10px 0; }
+.lst { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.it { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 11px; cursor: pointer; transition: 0.15s; }
+.it:hover, .it.s { border-color: var(--ac); }
+.it small { color: var(--mut); display: block; margin-top: 3px; font-size: 12px; }
+
+/* Diff Viewer */
+.diff div { white-space: pre; font: 12px/1.4 ui-monospace, Consolas, monospace; padding: 1px 8px; }
+.ad { background: rgba(56, 239, 125, 0.16); color: #8affb8; }
+.rm { background: rgba(255, 92, 119, 0.18); color: #ff9fb0; }
+
+/* Modals & Drawers */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 17, 0.86);
+  backdrop-filter: blur(8px);
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  padding: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+}
+.modal.open { display: flex; }
+.modal-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  max-width: 580px;
+  width: 100%;
+  margin: auto;
+  padding: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+.er { color: var(--bad); margin: 8px 0; font-size: 13px; min-height: 18px; }
+.note { color: var(--mut); font-size: 12px; line-height: 1.45; }
+.task-item { display: flex; align-items: center; gap: 8px; background: var(--code); border: 1px solid var(--border); padding: 8px 10px; border-radius: 10px; }
+.task-item.done span { text-decoration: line-through; color: var(--mut); }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin: 8px 0; }
+.stat-cell { background: var(--code); border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+.stat-cell b { display: block; font-size: 15px; color: var(--ac); }
+.stat-cell small { font-size: 11px; color: var(--mut); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="orb" id="orb"></div>
+  <div class="brand">
+    <div class="brand-row">
+      <h1>JARVIS</h1>
+      <span class="mode-pill" id="mode-badge" onclick="toggleModeQuick()" title="Tap to switch mode">MODDING</span>
+    </div>
+    <span id="st">Ready, Sir</span>
+  </div>
+  <div class="hdr-btns">
+    <button class="icon-btn" id="gnd-btn" onclick="toggleGrounding()" title="Google Search Grounding">🌐 Web OFF</button>
+    <button class="icon-btn" onclick="openTasks()" title="Tasks & Notes">📋 <span id="task-cnt">0</span></button>
+    <button class="icon-btn" id="spk" aria-pressed="false">🔇 TTS</button>
+  </div>
+</header>
+
+<div id="scr">
+  <span>● Screen sharing active</span>
+  <button class="d" onclick="stopScreen()">Stop</button>
+</div>
+
+<main>
+  <!-- CHAT VIEW -->
+  <section class="v a" id="v-chat">
+    <div id="msgs"></div>
+
+    <!-- Dynamic Mode Quick Chips -->
+    <div class="chips-scroll" id="chat-chips"></div>
+
+    <!-- Attachment Preview Strip (2-4 images + audio) -->
+    <div id="att-strip"></div>
+
+    <!-- Hidden File Inputs for Mobile Camera / Gallery / Audio -->
+    <input type="file" id="att-in" accept="image/*,audio/*,.mp3,.wav,.ogg,.m4a,.txt,.smali,.java,.json,.xml,.md,.log" multiple hidden>
+    <input type="file" id="cam-in" accept="image/*" capture="environment" hidden>
+
+    <div class="bar">
+      <button class="bar-btn" onclick="$('att-in').click()" title="Attach 2-4 Images, Audio, or Files">📎</button>
+      <button class="bar-btn" onclick="$('cam-in').click()" title="Snap Camera Photo">📸</button>
+      <button class="bar-btn" id="mic" title="Voice input">🎤</button>
+      <textarea id="in" rows="1" placeholder="Ask JARVIS, Sir… (or paste URL / image)"></textarea>
+      <button class="p bar-btn" id="send" title="Send" style="width:auto;padding:0 14px">➤</button>
+    </div>
+  </section>
+
+  <!-- TOOLS / WORKBENCH VIEW -->
+  <section class="v" id="v-tools">
+    <div class="pad">
+      <div class="row" style="justify-content:space-between;margin-top:0">
+        <b id="tools-title" style="color:var(--ac)">🛠 Smali & Modding Workbench</b>
+        <span class="note" id="tools-sub">Select lines to send partial code</span>
+      </div>
+
+      <!-- One-Click Smali Snippet Injector (Visible in Modding Mode) -->
+      <div id="smali-bar" class="card-box" style="padding:8px 10px;margin:6px 0">
+        <small style="color:var(--mut);display:block;margin-bottom:4px">⚡ One-Click Smali Snippet Injector:</small>
+        <div class="chips" style="margin:0">
+          <button onclick="injectSnippet('true')">Return True (0x1)</button>
+          <button onclick="injectSnippet('false')">Return False (0x0)</button>
+          <button onclick="injectSnippet('void')">Return Void</button>
+          <button onclick="injectSnippet('log')">Logcat Debug</button>
+          <button onclick="injectSnippet('toast')">Toast Popup</button>
+          <button onclick="injectSnippet('nop')">NOP Slide</button>
+        </div>
+      </div>
+
+      <!-- URL / Webpage Reader Bar -->
+      <div class="row">
+        <input id="tool-url" class="g" placeholder="🌐 Paste URL to fetch webpage text/source into editor…">
+        <button onclick="fetchUrlToTarget('ed')">Fetch Page</button>
+      </div>
+
+      <textarea id="ed" rows="11" spellcheck="false" style="font-family:ui-monospace,Consolas,monospace;font-size:12.5px" placeholder=".method public static isPremium()Z&#10;    const/4 v0, 0x0&#10;    return v0&#10;.end method"></textarea>
+
+      <div class="row">
+        <input type="file" id="file" class="g" style="padding:6px">
+        <button onclick="saveFile()">💾 Save</button>
+        <button onclick="edUndo()">↩ Undo</button>
+        <button class="d" onclick="$('ed').value=''">Clear</button>
+      </div>
+
+      <label>Quick Actions (<span id="acts-mode-lbl">Modding Mode</span>)</label>
+      <div class="chips" id="acts"></div>
+
+      <div class="row">
+        <input id="extra" class="g" placeholder="Extra instructions (optional), e.g. keep register count unchanged…">
+      </div>
+
+      <div id="prop" class="card-box" style="display:none">
+        <h3 style="margin-top:0">Proposed Diff</h3>
+        <div class="diff" id="diff" style="background:var(--code);border:1px solid var(--border);border-radius:10px;overflow:auto;max-height:38vh;padding:6px 0"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="p" onclick="applyP()">✓ Apply Change</button>
+          <button class="d" onclick="rejectP()">✕ Reject</button>
+          <button onclick="copyT(proposal)">📋 Copy</button>
+          <button onclick="downloadCode(proposal, S.mode==='modding'?'patched.smali':'document.md')">💾 Download</button>
+        </div>
+      </div>
+      <p class="note">In Universal Mode, this editor works as a Smart Scratchpad & Document Writer with live diff approval. In Modding Mode, it operates as a Smali/Code debugger.</p>
+    </div>
+  </section>
+
+  <!-- HISTORY VIEW -->
+  <section class="v" id="v-hist">
+    <div class="pad">
+      <div class="row" style="margin-top:0">
+        <button class="p" onclick="newChat();show('chat')">＋ New Chat</button>
+        <input id="hist-q" class="g" placeholder="🔍 Search history…" oninput="renderHist()">
+        <button class="d" onclick="clearAll()">🗑 Clear All</button>
+      </div>
+      <div id="hl" class="lst"></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS VIEW -->
+  <section class="v" id="v-set">
+    <div class="pad">
+      <div class="card-box">
+        <h3 style="margin-top:0">1. Operating Mode</h3>
+        <label>Select JARVIS Persona & Toolset</label>
+        <select id="mode-sel" onchange="switchMode(this.value)">
+          <option value="modding">🛠 Modding Mode (Android, APK, Smali & Reverse Engineering)</option>
+          <option value="universal">🌍 Universal Mode (Daily Productivity, Writing, Tasks & Web Search)</option>
+        </select>
+        <p class="note" style="margin:6px 0 0">Switching modes dynamically updates the Tools workbench, Chat quick-chips, and default AI instructions.</p>
+      </div>
+
+      <div class="card-box">
+        <h3 style="margin-top:0">2. Token & Quota Telemetry</h3>
+        <div class="stat-grid">
+          <div class="stat-cell"><b id="tk-in">0</b><small>Prompt Tokens</small></div>
+          <div class="stat-cell"><b id="tk-out">0</b><small>Output Tokens</small></div>
+          <div class="stat-cell"><b id="tk-tot">0</b><small>Total Tokens</small></div>
+        </div>
+        <p class="note" id="usage" style="margin:4px 0 0">Session requests: 0 · Errors: 0</p>
+      </div>
+
+      <div class="card-box">
+        <h3 style="margin-top:0">3. Gemini API & Model</h3>
+        <label>API Key</label>
+        <div class="row">
+          <input id="kk" type="password" class="g" readonly>
+          <button onclick="resetKey()">Change Key</button>
+        </div>
+        <label>Active Model</label>
+        <div class="row">
+          <b id="cm" class="g" style="color:var(--ac);word-break:break-all"></b>
+          <button onclick="openModels()">Select / Refresh</button>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <h3 style="margin-top:0">4. Mobile Text-to-Speech (TTS) & Voice</h3>
+        <div class="row">
+          <label style="margin:0;display:flex;align-items:center;gap:8px;color:var(--tx)">
+            <input type="checkbox" id="sp2" style="width:18px;height:18px"> Auto-Speak Replies (TTS)
+          </label>
+          <button onclick="testTTS()">🔊 Test Voice</button>
+        </div>
+        <label>Voice Input & Speech Language</label>
+        <select id="lang">
+          <option value="hi-IN">Hinglish / Hindi (hi-IN)</option>
+          <option value="en-IN">English (India)</option>
+          <option value="en-US">English (US)</option>
+          <option value="en-GB">English (UK)</option>
+        </select>
+        <label>Speech Rate (<span id="rate-val">1.0</span>x)</label>
+        <input type="range" id="rate" min="0.6" max="1.6" step="0.1" style="padding:0" oninput="$('rate-val').textContent=this.value">
+        <label>System TTS Voice</label>
+        <select id="vc"></select>
+        <label>Spoken Style</label>
+        <select id="sps">
+          <option value="summary">Concise Summary (Skips code blocks)</option>
+          <option value="full">Full Text (Reads everything except raw code)</option>
+        </select>
+      </div>
+
+      <div class="card-box">
+        <h3 style="margin-top:0">5. Custom Instructions & Appearance</h3>
+        <label>System Instructions</label>
+        <textarea id="ins" rows="5"></textarea>
+        <div class="row">
+          <select id="tone" class="g">
+            <option value="">Tone: Professional & Friendly</option>
+            <option value="Be witty, sharp, and relaxed.">Tone: Witty</option>
+            <option value="Be strictly formal and ultra-concise.">Tone: Formal</option>
+          </select>
+          <select id="len" class="g">
+            <option value="">Length: Balanced</option>
+            <option value="Keep answers concise and brief.">Length: Short</option>
+            <option value="Give comprehensive, step-by-step explanations.">Length: Detailed</option>
+          </select>
+        </div>
+        <label>Extra Preferences</label>
+        <textarea id="pref" rows="2" placeholder="Coding conventions, output preferences…"></textarea>
+        <label>UI Theme</label>
+        <select id="theme">
+          <option value="">Arc Cyan (Default)</option>
+          <option value="amber">Stark Amber</option>
+          <option value="violet">Cyber Violet</option>
+          <option value="mint">Matrix Mint</option>
+          <option value="crimson">Redline Crimson</option>
+        </select>
+        <div class="row" style="margin-top:12px">
+          <button class="p" onclick="saveSet()">💾 Save Settings</button>
+          <button onclick="resetIns()">Reset Instructions</button>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <h3 style="margin-top:0">Privacy & Reset</h3>
+        <p class="note">All chats, tasks, and API keys stay locally in your browser's localStorage.</p>
+        <div class="row">
+          <button class="d" onclick="clearAll()">Clear Chats</button>
+          <button class="d" onclick="if(confirm('Reset all settings, tasks, and chats?')){localStorage.clear();location.reload()}">Factory Reset App</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-v="chat" class="a"><span class="ico">💬</span><span>Chat</span></button>
+  <button data-v="tools"><span class="ico">🛠</span><span id="nav-tools-lbl">Tools</span></button>
+  <button data-v="hist"><span class="ico">🕘</span><span>History</span></button>
+  <button data-v="set"><span class="ico">⚙</span><span>Settings</span></button>
+</nav>
+
+<!-- API KEY & MODEL SETUP MODAL -->
+<div class="modal" id="setup">
+  <div class="modal-box">
+    <div class="orb" style="width:56px;height:56px;margin:0 auto 12px"></div>
+    <h2 style="text-align:center;letter-spacing:.14em;margin:0 0 10px">JARVIS v2.0 ONLINE</h2>
+    <div id="s1">
+      <p class="note" style="text-align:center">Enter your Gemini API key, Sir. Get one free at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--ac)">Google AI Studio</a>.</p>
+      <input id="key" type="password" placeholder="AIzaSy…" autocomplete="off">
+      <div class="er" id="e1"></div>
+      <button class="p" id="vk" style="width:100%">Validate & Load Models</button>
+    </div>
+    <div id="s2" style="display:none">
+      <input id="ms" placeholder="Search available models…">
+      <div class="lst" id="ml" style="max-height:42vh;overflow-y:auto"></div>
+      <div class="er" id="e2"></div>
+      <div class="row">
+        <button class="p g" id="mc">Confirm Model</button>
+        <button id="mr">Refresh</button>
+        <button onclick="$('setup').classList.remove('open')">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TASKS & NOTES DRAWER MODAL -->
+<div class="modal" id="tasks-modal">
+  <div class="modal-box">
+    <div class="row" style="justify-content:space-between;margin-top:0">
+      <h3 style="margin:0">📋 Tasks, Reminders & Quick Notes</h3>
+      <button onclick="$('tasks-modal').classList.remove('open')">✕ Close</button>
+    </div>
+    <p class="note">Tip: You can also tell JARVIS in chat: <i>"Add a task to test the new APK at 6 PM"</i>.</p>
+    <div class="row">
+      <input id="task-in" class="g" placeholder="New task or reminder…" onkeydown="if(event.key==='Enter')addTask()">
+      <button class="p" onclick="addTask()">＋ Add</button>
+    </div>
+    <div id="task-list" class="lst" style="max-height:45vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- LIVE HTML/JS SANDBOX PREVIEW MODAL -->
+<div class="modal" id="sandbox-modal">
+  <div class="modal-box" style="max-width:900px;height:85vh;display:flex;flex-direction:column">
+    <div class="row" style="justify-content:space-between;margin-top:0">
+      <h3 style="margin:0">▶ Live HTML / JS Sandbox Preview</h3>
+      <div class="row" style="margin:0">
+        <button onclick="downloadCode(sandboxCode, 'preview.html')">💾 Download HTML</button>
+        <button class="d" onclick="closeSandbox()">✕ Close</button>
+      </div>
+    </div>
+    <iframe id="sandbox-frame" sandbox="allow-scripts allow-modals allow-forms" style="flex:1;width:100%;border:1px solid var(--border);border-radius:10px;background:#fff;margin-top:8px"></iframe>
+  </div>
+</div>
+
+<script>
+const $ = i => document.getElementById(i);
+const API = 'https://generativelanguage.googleapis.com/v1beta/';
+
+const INS_MODDING = "You are JARVIS, my personal AI engineering assistant. Address me as Sir. Explain technical topics in simple Hinglish unless I request another language. Prioritize Android development, APK modding, Smali debugging, and accurate step-by-step explanations. Analyze the actual code before suggesting changes. Trace registers and branches, cite exact lines, and explain what each important Smali instruction does.";
+const INS_UNIVERSAL = "You are JARVIS, my personal daily AI assistant. Address me as Sir. Reply in clear Hinglish or English matching my prompt. Help me with daily productivity, writing, summarizing documents, translation, brainstorming, web research, and task management. Keep answers well-structured, practical, and easy to read.";
+
+const ls = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
+const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('Storage quota warning:', e); } };
+
+let S = Object.assign({
+  key: '', model: '', mode: 'modding', speak: false, grounding: false,
+  lang: 'hi-IN', rate: 1, voice: '', style: 'summary',
+  ins: INS_MODDING, tone: '', len: '', pref: '', theme: ''
+}, ls('j_set', {}));
+
+let chats = ls('j_chats', []), tasks = ls('j_tasks', []), cur = null, busy = false, ctl = null;
+let models = [], sel = '', rec = null, stream = null, proposal = '', edHist = [], pip = null;
+let pendingAtts = []; // Holds {type:'image'|'audio'|'text', mime, data, name, preview}
+let calls = 0, errs = 0, tokIn = 0, tokOut = 0, sandboxCode = '';
+
+const save = () => sv('j_set', S);
+const saveC = () => sv('j_chats', chats.slice(0, 50));
+const saveT = () => { sv('j_tasks', tasks); updateTaskBadge(); };
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+function state(s) {
+  $('orb').className = 'orb ' + (s === 'idle' ? '' : s);
+  $('st').textContent = s === 'idle' ? 'Ready, Sir' : s[0].toUpperCase() + s.slice(1) + '…';
+}
+
+function show(v) {
+  document.querySelectorAll('.v').forEach(e => e.classList.toggle('a', e.id === 'v-' + v));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('a', b.dataset.v === v));
+  if (v === 'hist') renderHist();
+  if (v === 'set') loadSet();
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.v));
+
+function copyT(t) {
+  navigator.clipboard?.writeText(t).catch(() => {
+    const a = document.createElement('textarea');
+    a.value = t; document.body.append(a); a.select(); document.execCommand('copy'); a.remove();
+  });
+}
+
+/* ---------- DUAL-MODE ARCHITECTURE (MODDING vs UNIVERSAL) ---------- */
+const MODDING_ACTS = {
+  "Explain Smali": "Explain this in simple Hinglish, line by line, covering registers (v0, p0), descriptors and control flow.",
+  "Debug Crash": "Find bugs, crash causes and verifier/assembly errors in this. Cite exact lines.",
+  "Find False Condition": "Check why this condition is false: locate the conditional instructions, trace register values and control flow, name the exact responsible line, explain intended vs actual behavior, and propose a minimal valid fix.",
+  "Fix Code": "Fix this. Return the COMPLETE corrected code in ONE fenced code block, then explain each changed line in Hinglish.",
+  "Optimize": "Optimize/clean this and return the complete result in ONE fenced code block.",
+  "Java ↔ Smali": "Convert this between Java and Smali (choose the opposite of the input) and return the complete result in ONE fenced code block.",
+  "Stack trace / Logcat": "Analyze this stack trace or logcat: root cause, likely fix, what to check next.",
+  "Manifest / Build": "Diagnose manifest, resource or apktool rebuild/install problems in this text."
+};
+
+const UNIVERSAL_ACTS = {
+  "Summarize": "Summarize this text clearly with key bullet points.",
+  "Polish / Rewrite": "Rewrite and polish this text to make it clear, professional, and well-written. Return the complete revised text in ONE fenced code block so I can diff and apply it.",
+  "Translate (Hinglish/EN)": "Translate this text into natural English (or Hinglish if already English). Return the complete translation in ONE fenced code block.",
+  "Extract Action Items": "Extract all tasks, deadlines, and action items from this text into a clean checklist.",
+  "Explain Simply": "Explain this concept in simple everyday language with practical examples.",
+  "Format as Table": "Organize the information in this text into a clean structured table or markdown list.",
+  "Brainstorm Ideas": "Brainstorm creative ideas, improvements, and next steps based on this text."
+};
+
+const SMALI_SNIPPETS = {
+  true: ".registers 2\n    const/4 v0, 0x1\n    return v0\n",
+  false: ".registers 2\n    const/4 v0, 0x0\n    return v0\n",
+  void: ".registers 1\n    return-void\n",
+  log: "    const-string v0, \"JARVIS_DBG\"\n    const-string v1, \"Method reached successfully\"\n    invoke-static {v0, v1}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I\n",
+  toast: "    const-string v0, \"Modded by JARVIS\"\n    const/4 v1, 0x1\n    invoke-static {p0, v0, v1}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/Sequence;I)Landroid/widget/Toast;\n    move-result-object v0\n    invoke-virtual {v0}, Landroid/widget/Toast;->show()V\n",
+  nop: "    nop\n    nop\n    nop\n"
+};
+
+function applyModeUI() {
+  const isMod = S.mode === 'modding';
+  $('mode-badge').textContent = isMod ? '🛠 MODDING' : '🌍 UNIVERSAL';
+  $('tools-title').textContent = isMod ? '🛠 Smali & Modding Workbench' : '📝 Smart Scratchpad & Document Writer';
+  $('nav-tools-lbl').textContent = isMod ? 'Mod Tools' : 'Workspace';
+  $('acts-mode-lbl').textContent = isMod ? 'Modding Mode' : 'Universal Mode';
+  $('smali-bar').style.display = isMod ? 'block' : 'none';
+  $('ed').placeholder = isMod
+    ? ".method public static check()Z\n    const/4 v0, 0x0\n    return v0\n.end method"
+    : "Write or paste notes, emails, articles, or webpage text here…";
+
+  // Populate Tools Action Buttons
+  const acts = isMod ? MODDING_ACTS : UNIVERSAL_ACTS;
+  $('acts').innerHTML = '';
+  Object.keys(acts).forEach(k => {
+    const b = document.createElement('button');
+    b.textContent = k;
+    b.onclick = () => toolRun(k, acts[k]);
+    $('acts').append(b);
+  });
+
+  // Populate Chat Quick-Chips Bar
+  const chips = $('chat-chips');
+  chips.innerHTML = '';
+  const list = isMod ? [
+    { lbl: '📷 Analyze Screen', fn: () => analyzeScreen() },
+    { lbl: '🐞 Quick Debug', fn: () => quickPrompt('Help me debug this Android / Smali issue, Sir: ') },
+    { lbl: '⚡ Bypass Check', fn: () => quickPrompt('How do I bypass this check in Smali: ') },
+    { lbl: '🌐 Fetch URL', fn: () => promptFetchUrl() },
+    { lbl: '＋ New Chat', fn: () => newChat() },
+    { lbl: '■ Stop', fn: () => stopAll() },
+    { lbl: '🪟 Float', fn: () => openFloat() }
+  ] : [
+    { lbl: '📝 Summarize', fn: () => quickPrompt('Summarize this for me, Sir: ') },
+    { lbl: '🌐 Translate', fn: () => quickPrompt('Translate this into clean English / Hinglish: ') },
+    { lbl: '💡 Brainstorm', fn: () => quickPrompt('Brainstorm 5 great ideas for: ') },
+    { lbl: '🔗 Read Webpage', fn: () => promptFetchUrl() },
+    { lbl: '📷 Screen Share', fn: () => analyzeScreen() },
+    { lbl: '＋ New Chat', fn: () => newChat() },
+    { lbl: '■ Stop', fn: () => stopAll() }
+  ];
+  list.forEach(c => {
+    const b = document.createElement('button');
+    b.textContent = c.lbl;
+    b.onclick = c.fn;
+    chips.append(b);
+  });
+
+  // Grounding button state
+  $('gnd-btn').classList.toggle('on', !!S.grounding);
+  $('gnd-btn').textContent = S.grounding ? '🌐 Web ON' : '🌐 Web OFF';
+}
+
+function switchMode(m) {
+  S.mode = m;
+  if (S.ins === INS_MODDING || S.ins === INS_UNIVERSAL) {
+    S.ins = m === 'modding' ? INS_MODDING : INS_UNIVERSAL;
+    if ($('ins')) $('ins').value = S.ins;
+  }
+  save();
+  applyModeUI();
+}
+
+function toggleModeQuick() {
+  switchMode(S.mode === 'modding' ? 'universal' : 'modding');
+  if ($('mode-sel')) $('mode-sel').value = S.mode;
+}
+
+function toggleGrounding() {
+  S.grounding = !S.grounding;
+  save();
+  applyModeUI();
+}
+
+function quickPrompt(prefix) {
+  const inp = $('in');
+  inp.value = prefix + inp.value;
+  inp.focus();
+}
+
+/* ---------- DOWNLOADABLE FILE GENERATOR & SANDBOX PREVIEW ---------- */
+function guessExt(lang, code) {
+  const l = (lang || '').toLowerCase().trim();
+  if (l.includes('smali') || /^\s*\.method\b/m.test(code)) return '.smali';
+  if (l.includes('html') || /<!doctype html>|<html|<div/i.test(code)) return '.html';
+  if (l.includes('json') || /^\s*[\[{]/.test(code)) return '.json';
+  if (l.includes('js') || l.includes('javascript')) return '.js';
+  if (l.includes('java')) return '.java';
+  if (l.includes('xml')) return '.xml';
+  if (l.includes('py')) return '.py';
+  if (l.includes('md') || l.includes('markdown')) return '.md';
+  return S.mode === 'modding' ? '.smali' : '.txt';
+}
+
+function isRunnableHtml(lang, code) {
+  const l = (lang || '').toLowerCase();
+  return l === 'html' || l === 'htm' || /<!doctype html>|<html\b|<script\b|<style\b|<canvas\b/i.test(code);
+}
+
+function downloadCode(content, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
+  a.download = filename || 'jarvis-output.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function openSandbox(code) {
+  sandboxCode = code.includes('<html') ? code : `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:system-ui,sans-serif;padding:16px;margin:0}</style></head><body>${code}</body></html>`;
+  $('sandbox-frame').srcdoc = sandboxCode;
+  $('sandbox-modal').classList.add('open');
+}
+
+function closeSandbox() {
+  $('sandbox-modal').classList.remove('open');
+  $('sandbox-frame').srcdoc = '';
+}
+
+/* ---------- MESSAGE & CODE BLOCK RENDERING ---------- */
+function render(t) {
+  const parts = String(t).split(/```/);
+  const d = document.createElement('div');
+  parts.forEach((p, i) => {
+    if (i % 2) {
+      const nl = p.indexOf('\n');
+      const lang = nl > -1 ? p.slice(0, nl).trim() : '';
+      const code = (nl > -1 ? p.slice(nl + 1) : p).replace(/\n$/, '');
+      const ext = guessExt(lang, code);
+
+      const pre = document.createElement('pre');
+      const bar = document.createElement('div');
+      bar.className = 'code-bar';
+      const lbl = document.createElement('span');
+      lbl.textContent = lang || ext.slice(1).toUpperCase();
+
+      const btns = document.createElement('div');
+      btns.className = 'code-btns';
+
+      if (isRunnableHtml(lang, code)) {
+        const runBtn = document.createElement('button');
+        runBtn.textContent = '▶ Run Preview';
+        runBtn.className = 'p';
+        runBtn.onclick = () => openSandbox(code);
+        btns.append(runBtn);
+      }
+
+      const dlBtn = document.createElement('button');
+      dlBtn.textContent = '💾 ' + ext;
+      dlBtn.title = 'Download file';
+      dlBtn.onclick = () => downloadCode(code, 'jarvis-file' + ext);
+
+      const cpBtn = document.createElement('button');
+      cpBtn.textContent = '📋 Copy';
+      cpBtn.onclick = () => { copyT(code); cpBtn.textContent = '✓ Copied'; setTimeout(() => cpBtn.textContent = '📋 Copy', 1500); };
+
+      btns.append(dlBtn, cpBtn);
+      bar.append(lbl, btns);
+      pre.append(bar, document.createTextNode(code));
+      d.append(pre);
+    } else {
+      const s = document.createElement('span');
+      s.innerHTML = esc(p)
+        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>');
+      d.append(s);
+    }
+  });
+  return d;
+}
+
+function addMsg(role, text, atts) {
+  const m = document.createElement('div');
+  m.className = 'm ' + (role === 'user' ? 'u' : role === 'error' ? 'e' : '');
+
+  if (atts && atts.length) {
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'm-imgs';
+    atts.forEach(a => {
+      if (a.type === 'image') {
+        const im = new Image();
+        im.src = 'data:' + a.mime + ';base64,' + a.data;
+        imgWrap.append(im);
+      } else {
+        const badge = document.createElement('div');
+        badge.className = 'm-aud';
+        badge.textContent = (a.type === 'audio' ? '🎵 ' : '📄 ') + (a.name || a.mime);
+        m.append(badge);
+      }
+    });
+    if (imgWrap.children.length) m.prepend(imgWrap);
+  }
+
+  if (role === 'model') {
+    m.append(render(text));
+    const foot = document.createElement('div');
+    foot.className = 'm-foot';
+
+    const cp = document.createElement('button');
+    cp.textContent = '📋 Copy';
+    cp.onclick = () => copyT(text);
+
+    const spkBtn = document.createElement('button');
+    spkBtn.textContent = '🔊 Speak';
+    spkBtn.onclick = () => speak(text, true);
+
+    const dl = document.createElement('button');
+    dl.textContent = '💾 Save .md';
+    dl.onclick = () => downloadCode(text, 'jarvis-reply.md');
+
+    foot.append(cp, spkBtn, dl);
+    m.append(foot);
+  } else {
+    m.append(document.createTextNode(text));
+  }
+
+  $('msgs').append(m);
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+  return m;
+}
+
+function loadChat(c) {
+  cur = c;
+  $('msgs').innerHTML = '';
+  c.msgs.forEach(m => addMsg(m.r, m.t));
+}
+
+function newChat() {
+  stopAll();
+  cur = { id: Date.now(), title: 'New chat', msgs: [] };
+  chats.unshift(cur);
+  $('msgs').innerHTML = '';
+  const greet = S.mode === 'modding'
+    ? 'Good day, Sir. JARVIS v2.0 Modding Suite ready. Konsa APK, Smali code ya screenshot analyze karna hai?'
+    : 'Good day, Sir. JARVIS v2.0 Universal Assistant ready. Aaj kya plan, research ya task complete karna hai?';
+  addMsg('model', greet);
+}
+
+function renderHist() {
+  const q = ($('hist-q')?.value || '').toLowerCase();
+  const l = $('hl');
+  const valid = chats.filter(c => c.msgs.length && (c.title.toLowerCase().includes(q) || c.msgs.some(m => m.t.toLowerCase().includes(q))));
+  l.innerHTML = valid.length ? '' : '<p class="note">No matching saved chats.</p>';
+  valid.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'it';
+    d.innerHTML = '<b></b><small>' + new Date(c.id).toLocaleString() + ' · ' + c.msgs.length + ' messages</small>';
+    d.firstChild.textContent = c.title;
+    d.onclick = () => { loadChat(c); show('chat'); };
+    const x = document.createElement('button');
+    x.textContent = 'Delete';
+    x.className = 'd';
+    x.style.marginTop = '6px';
+    x.onclick = e => {
+      e.stopPropagation();
+      const idx = chats.indexOf(c);
+      if (idx > -1) chats.splice(idx, 1);
+      saveC();
+      renderHist();
+    };
+    d.append(x);
+    l.append(d);
+  });
+}
+
+function clearAll() {
+  if (!confirm('Delete all chat history?')) return;
+  chats = [];
+  saveC();
+  newChat();
+  renderHist();
+}
+
+/* ---------- MULTI-IMAGE (2-4), CAMERA & AUDIO UPLOAD ---------- */
+function renderAttStrip() {
+  const st = $('att-strip');
+  if (!pendingAtts.length) {
+    st.style.display = 'none';
+    st.innerHTML = '';
+    return;
+  }
+  st.style.display = 'flex';
+  st.innerHTML = '';
+  pendingAtts.forEach((a, idx) => {
+    const item = document.createElement('div');
+    item.className = 'att-item';
+    if (a.type === 'image') {
+      const im = new Image();
+      im.src = 'data:' + a.mime + ';base64,' + a.data;
+      item.append(im);
+    }
+    const nm = document.createElement('span');
+    nm.textContent = (a.type === 'audio' ? '🎵 ' : a.type === 'text' ? '📄 ' : '') + (a.name || 'Attachment').slice(0, 16);
+    const rm = document.createElement('button');
+    rm.className = 'rm-att';
+    rm.textContent = '✕';
+    rm.onclick = () => { pendingAtts.splice(idx, 1); renderAttStrip(); };
+    item.append(nm, rm);
+    st.append(item);
+  });
+}
+
+async function compressImgFile(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const max = 1400;
+      const sc = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * sc);
+      c.height = Math.round(img.height * sc);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const b64 = c.toDataURL('image/jpeg', 0.82).split(',')[1];
+      resolve({ type: 'image', mime: 'image/jpeg', data: b64, name: file.name });
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+async function handleFilesSelected(fileList) {
+  for (const f of fileList) {
+    if (pendingAtts.length >= 4) {
+      addMsg('error', 'Maximum 4 attachments allowed at once for side-by-side comparison.');
+      break;
+    }
+    if (f.type.startsWith('image/')) {
+      const imgAtt = await compressImgFile(f);
+      pendingAtts.push(imgAtt);
+    } else if (f.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(f.name)) {
+      if (f.size > 15e6) { addMsg('error', 'Audio file too large (>15 MB).'); continue; }
+      const b64 = await fileToBase64(f);
+      const mime = f.type || (f.name.endsWith('.mp3') ? 'audio/mp3' : f.name.endsWith('.wav') ? 'audio/wav' : 'audio/ogg');
+      pendingAtts.push({ type: 'audio', mime, data: b64, name: f.name });
+    } else {
+      if (f.size > 2e6) { addMsg('error', 'Text file too large (>2 MB).'); continue; }
+      const txt = await f.text();
+      pendingAtts.push({ type: 'text', mime: 'text/plain', data: txt, name: f.name });
+    }
+  }
+  renderAttStrip();
+}
+
+$('att-in').onchange = e => { handleFilesSelected(e.target.files); e.target.value = ''; };
+$('cam-in').onchange = e => { handleFilesSelected(e.target.files); e.target.value = ''; };
+
+// Paste Image or URL directly into Chat Input
+$('in').addEventListener('paste', async e => {
+  const items = e.clipboardData?.items || [];
+  const files = [];
+  for (const it of items) {
+    if (it.kind === 'file') {
+      const f = it.getAsFile();
+      if (f) files.push(f);
+    }
+  }
+  if (files.length) {
+    e.preventDefault();
+    await handleFilesSelected(files);
+  }
+});
+
+/* ---------- WEBPAGE / URL READER ---------- */
+async function fetchWebpageText(url) {
+  const cleanUrl = url.trim();
+  if (!/^https?:\/\//i.test(cleanUrl)) throw new Error('Enter a valid http:// or https:// URL.');
+  state('processing');
+  try {
+    // Uses Jina Reader CORS-friendly markdown extractor with fallback to AllOrigins proxy
+    const res = await fetch('[https://r.jina.ai/](https://r.jina.ai/)' + cleanUrl, { headers: { 'Accept': 'text/plain' } });
+    if (res.ok) return (await res.text()).slice(0, 25000);
+    const res2 = await fetch('[https://api.allorigins.win/raw?url=](https://api.allorigins.win/raw?url=)' + encodeURIComponent(cleanUrl));
+    if (res2.ok) return (await res2.text()).slice(0, 25000);
+    throw new Error('Could not fetch remote page (CORS blocked).');
+  } finally {
+    state('idle');
+  }
+}
+
+async function fetchUrlToTarget(targetId) {
+  const u = $('tool-url').value.trim();
+  if (!u) return alert('Paste a URL first, Sir.');
+  try {
+    const content = await fetchWebpageText(u);
+    edHist.push($('ed').value);
+    $(targetId).value = content;
+    $('tool-url').value = '';
+  } catch (e) {
+    addMsg('error', 'URL Fetch failed: ' + e.message);
+    show('chat');
+  }
+}
+
+async function promptFetchUrl() {
+  const u = prompt('Paste webpage URL to read & analyze:');
+  if (!u) return;
+  try {
+    const content = await fetchWebpageText(u);
+    ask(`Analyze and summarize the following webpage (${u}):\n\n\`\`\`\n${content.slice(0, 14000)}\n\`\`\``);
+  } catch (e) {
+    addMsg('error', 'URL Fetch failed: ' + e.message);
+  }
+}
+
+/* ---------- BUILT-IN TASK & REMINDER TRACKER ---------- */
+function updateTaskBadge() {
+  const active = tasks.filter(t => !t.done).length;
+  $('task-cnt').textContent = active;
+}
+
+function renderTasks() {
+  const list = $('task-list');
+  list.innerHTML = tasks.length ? '' : '<p class="note">No tasks or reminders saved yet.</p>';
+  tasks.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.className = 'task-item' + (t.done ? ' done' : '');
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = !!t.done;
+    chk.style.width = '18px';
+    chk.style.height = '18px';
+    chk.onchange = () => { t.done = chk.checked; saveT(); renderTasks(); };
+
+    const sp = document.createElement('span');
+    sp.style.flex = '1';
+    sp.textContent = t.text;
+
+    const del = document.createElement('button');
+    del.className = 'd';
+    del.style.padding = '4px 8px';
+    del.textContent = '✕';
+    del.onclick = () => { tasks.splice(i, 1); saveT(); renderTasks(); };
+
+    row.append(chk, sp, del);
+    list.append(row);
+  });
+}
+
+function addTask(textOpt) {
+  const v = (textOpt || $('task-in').value).trim();
+  if (!v) return;
+  tasks.unshift({ id: Date.now(), text: v, done: false });
+  if (!textOpt) $('task-in').value = '';
+  saveT();
+  renderTasks();
+}
+
+function openTasks() {
+  renderTasks();
+  $('tasks-modal').classList.add('open');
+}
+
+function checkNaturalTaskCommand(promptText) {
+  const m = promptText.match(/^(?:add\s+(?:a\s+)?task|remind\s+me\s+to|add\s+to\s+my\s+tasks?)[:\s]+(.+)$/i);
+  if (m && m[1]) {
+    addTask(m[1].trim());
+    return m[1].trim();
+  }
+  return null;
+}
+
+/* ---------- GEMINI API & TOKEN TELEMETRY ---------- */
+const hdr = () => ({ 'x-goog-api-key': S.key, 'Content-Type': 'application/json' });
+const redact = s => String(s).replace(/AIza[\w-]{10,}/g, '[REDACTED]').replace(S.key || '\u0000', '[REDACTED]');
+
+async function api(path, opt = {}, ms = 60000) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort('timeout'), ms);
+  (opt._sig || { addEventListener() {} }).addEventListener?.('abort', () => c.abort());
+  try {
+    const r = await fetch(API + path, { ...opt, headers: hdr(), signal: c.signal });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const m = j.error?.message || r.statusText;
+      const e = new Error(
+        r.status === 429 ? 'Quota or rate limit reached. Wait a moment or pick another model. ' + m
+        : r.status === 400 && /API key/i.test(m) ? 'API key invalid.'
+        : r.status === 404 ? 'Model unavailable: ' + m : m
+      );
+      e.status = r.status;
+      throw e;
+    }
+    return j;
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error(c.signal.reason === 'timeout' ? 'Request timed out.' : 'Stopped.');
+    if (e instanceof TypeError) throw new Error(navigator.onLine ? 'Network error (blocked or unreachable).' : 'You are offline.');
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function listModels() {
+  let out = [], tok = '';
+  do {
+    const j = await api('models?pageSize=100' + (tok ? '&pageToken=' + tok : ''));
+    out.push(...(j.models || []));
+    tok = j.nextPageToken;
+  } while (tok);
+  models = out.filter(m => (m.supportedGenerationMethods || []).includes('generateContent'));
+  if (!models.length) throw new Error('No models with generateContent were returned for this key.');
+  return models;
+}
+
+function sysText() {
+  const modeRule = S.mode === 'modding'
+    ? "Operating in MODDING MODE: When analyzing Smali, read supplied code carefully, trace registers and branches, cite exact lines, state missing context, and never guess. Use fenced code blocks."
+    : "Operating in UNIVERSAL MODE: Assist with daily productivity, writing, research, tasks, and clear explanations.";
+  const activeTasks = tasks.filter(t => !t.done).map(t => "- " + t.text).join('\n');
+  const taskContext = activeTasks ? `\nUser's current active tasks:\n${activeTasks}` : '';
+  return [S.ins, modeRule, S.tone, S.len, S.pref, taskContext].filter(Boolean).join('\n');
+}
+
+function updateTelemetryUI() {
+  if ($('tk-in')) $('tk-in').textContent = tokIn.toLocaleString();
+  if ($('tk-out')) $('tk-out').textContent = tokOut.toLocaleString();
+  if ($('tk-tot')) $('tk-tot').textContent = (tokIn + tokOut).toLocaleString();
+  if ($('usage')) $('usage').textContent = `Session requests: ${calls} · Errors: ${errs}`;
+}
+
+async function ask(text, extraAtts) {
+  if (busy) return;
+  if (!S.key || !S.model) return showSetup();
+  unlockMobileTTS();
+
+  const atts = extraAtts || [...pendingAtts];
+  pendingAtts = [];
+  renderAttStrip();
+
+  if (!text && atts.length) {
+    text = atts.length > 1
+      ? 'Compare and analyze these attached files/screenshots side by side, Sir.'
+      : atts[0].type === 'audio'
+      ? 'Transcribe and summarize this audio clip, Sir.'
+      : 'Analyze this attachment carefully, Sir.';
+  }
+
+  // Check if user is adding a task via natural chat command
+  const addedTask = checkNaturalTaskCommand(text);
+
+  busy = true;
+  stopSpeech();
+  state('processing');
+  $('send').disabled = true;
+
+  if (!cur) newChat();
+  const parts = [];
+  let textPayload = text;
+
+  atts.forEach(a => {
+    if (a.type === 'image' || a.type === 'audio') {
+      parts.push({ inlineData: { mimeType: a.mime, data: a.data } });
+    } else if (a.type === 'text') {
+      textPayload += `\n\nAttached File (${a.name}):\n\`\`\`\n${a.data}\n\`\`\``;
+    }
+  });
+  parts.unshift({ text: textPayload });
+
+  addMsg('user', text, atts);
+  cur.msgs.push({ r: 'user', t: text + (atts.length ? ` [${atts.length} attachment(s)]` : '') });
+  if (cur.title === 'New chat') cur.title = text.slice(0, 48);
+
+  const hist = cur.msgs.slice(0, -1).slice(-20).map(m => ({
+    role: m.r === 'user' ? 'user' : 'model',
+    parts: [{ text: m.t }]
+  }));
+
+  const bodyObj = {
+    systemInstruction: { parts: [{ text: sysText() }] },
+    contents: [...hist, { role: 'user', parts }]
+  };
+  if (S.grounding) {
+    bodyObj.tools = [{ googleSearch: {} }];
+  }
+
+  ctl = new AbortController();
+  calls++;
+  try {
+    const j = await api(S.model + ':generateContent', {
+      method: 'POST',
+      _sig: ctl.signal,
+      body: JSON.stringify(bodyObj)
+    }, 95000);
+
+    // Parse Token Usage Metadata
+    if (j.usageMetadata) {
+      tokIn += j.usageMetadata.promptTokenCount || 0;
+      tokOut += j.usageMetadata.candidatesTokenCount || 0;
+    }
+    updateTelemetryUI();
+
+    const c = j.candidates?.[0];
+    let r = (c?.content?.parts || []).map(p => p.text || '').join('');
+    if (!r) {
+      r = j.promptFeedback?.blockReason
+        ? 'Blocked by safety policy: ' + j.promptFeedback.blockReason
+        : 'No response returned (finish reason: ' + (c?.finishReason || 'unknown') + ').';
+    }
+    if (addedTask) {
+      r = `✅ **Task Added:** "${addedTask}"\n\n` + r;
+    }
+
+    cur.msgs.push({ r: 'model', t: r });
+    saveC();
+    addMsg('model', r);
+    state('idle');
+    if (S.speak) speak(r);
+    window._last = r;
+    onReply(r);
+  } catch (e) {
+    errs++;
+    updateTelemetryUI();
+    const m = redact(e.message);
+    addMsg('error', m);
+    cur.msgs.pop();
+    state('idle');
+  } finally {
+    busy = false;
+    $('send').disabled = false;
+    ctl = null;
+  }
+}
+
+function send() {
+  const t = $('in').value.trim();
+  if (!t && !pendingAtts.length) return;
+  $('in').value = '';$('in').style.height = '';
+  ask(t);
+}
+$('send').onclick = send;
+$('in').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 700) { e.preventDefault(); send(); } };$('in').oninput = e => {
+  e.target.style.height = 'auto';
+  e.target.style.height = Math.min(e.target.scrollHeight, 115) + 'px';
+};
+
+function stopAll() {
+  ctl?.abort();
+  stopSpeech();
+  rec?.abort?.();
+  state('idle');
+}
+
+/* ---------- MOBILE-OPTIMIZED TEXT-TO-SPEECH (TTS) & VOICE INPUT ---------- */
+const syn = window.speechSynthesis;
+let ttsUnlocked = false, ttsTimer = null;
+
+function unlockMobileTTS() {
+  if (!syn || ttsUnlocked) return;
+  try {
+    const u = new SpeechSynthesisUtterance('');
+    u.volume = 0;
+    syn.speak(u);
+    ttsUnlocked = true;
+  } catch {}
+}
+
+function cleanTextForSpeech(t) {
+  if (S.style === 'summary' && /```|Exception|\bat [\w.$]+\(|^\s*(\.method|invoke-|const|if-)/m.test(t)) {
+    const s = t.replace(/```[\s\S]*?```/g, ' ').replace(/[*#`_>|~-]/g, ' ').replace(/\s+/g, ' ').trim();
+    return (s.slice(0, 300) || '') + '. Code aur poora detail screen par hai, Sir.';
+  }
+  return t.replace(/```[\s\S]*?```/g, ' Code block screen par hai. ').replace(/[*#`_>|~]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1800);
+}
+
+function speak(t, force) {
+  if (!syn || (!S.speak && !force)) return;
+  stopSpeech();
+  const cleaned = cleanTextForSpeech(t);
+  if (!cleaned) return;
+
+  // Split long speech into sentences so Android/iOS mobile WebViews don't cut off after 15 seconds
+  const chunks = cleaned.match(/[^.!?।]+[.!?।]*/g) || [cleaned];
+  let idx = 0;
+
+  function playNext() {
+    if (idx >= chunks.length) {
+      state('idle');
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(chunks[idx++].trim());
+    u.lang = S.lang;
+    u.rate = +S.rate || 1;
+    const voices = syn.getVoices();
+    const v = voices.find(x => x.name === S.voice) || voices.find(x => x.lang.startsWith(S.lang.split('-')[0]));
+    if (v) u.voice = v;
+    u.onstart = () => state('speaking');
+    u.onend = () => playNext();
+    u.onerror = () => state('idle');
+    syn.speak(u);
+  }
+  playNext();
+}
+
+function testTTS() {
+  unlockMobileTTS();
+  speak('JARVIS voice system online and calibrated, Sir.', true);
+}
+
+function stopSpeech() {
+  if (ttsTimer) clearInterval(ttsTimer);
+  if (syn) syn.cancel();
+}
+
+function setSpeak(on) {
+  S.speak = on;
+  save();
+  if (on) unlockMobileTTS();
+  const b = $('spk');
+  b.classList.toggle('on', on);
+  b.setAttribute('aria-pressed', on);
+  b.textContent = on ? '🔊 TTS ON' : '🔇 TTS';
+  if (!on) stopSpeech();
+  if ($('sp2')) $('sp2').checked = on;
+}
+$('spk').onclick = () => setSpeak(!S.speak);
+
+function mic(cb) {
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!R) return addMsg('error', 'Voice input requires Chrome, Edge, or Safari.');
+  if (rec) { rec.abort(); return; }
+  stopSpeech();
+  rec = new R();
+  rec.lang = S.lang;
+  rec.interimResults = true;
+  $('mic').classList.add('on');
+  state('listening');
+  rec.onresult = e => {
+    let t = '';
+    for (const r of e.results) t += r[0].transcript;
+    (cb || (x => { $('in').value = x; }))(t);
+  };
+  rec.onerror = e => {
+    if (e.error === 'not-allowed') addMsg('error', 'Microphone permission denied.');
+    else if (e.error !== 'aborted' && e.error !== 'no-speech') addMsg('error', 'Voice error: ' + e.error);
+  };
+  rec.onend = () => { rec = null; $('mic').classList.remove('on'); state('idle'); };
+  rec.start();
+}
+$('mic').onclick = () => mic();
+
+/* ---------- SCREEN AWARENESS (DESKTOP + MOBILE FALLBACK) ---------- */
+function stopScreen() {
+  stream?.getTracks().forEach(t => t.stop());
+  stream = null;
+  $('scr').style.display = 'none';
+}
+
+async function analyzeScreen(q) {
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    // On mobile browsers where getDisplayMedia is unavailable, open screenshot/camera picker seamlessly
+    $('att-in').click();
+    return;
+  }
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    $('scr').style.display = 'flex';
+    stream.getVideoTracks()[0].onended = stopScreen;
+    const v = document.createElement('video');
+    v.srcObject = stream;
+    v.muted = true;
+    await v.play();
+    await new Promise(r => setTimeout(r, 400));
+    const c = document.createElement('canvas');
+    const sc = Math.min(1, 1600 / v.videoWidth);
+    c.width = v.videoWidth * sc;
+    c.height = v.videoHeight * sc;
+    c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+    stopScreen();
+    const img = c.toDataURL('image/jpeg', 0.82).split(',')[1];
+    const t = q || $('in').value.trim() || 'Explain what is on this screen. If there is code, an error or Smali, analyze it precisely.';
+    $('in').value = '';
+    ask(t, [{ type: 'image', mime: 'image/jpeg', data: img, name: 'screen.jpg' }]);
+  } catch (e) {
+    stopScreen();
+    if (e.name !== 'NotAllowedError') addMsg('error', 'Capture failed: ' + e.message);
+  }
+}
+
+/* ---------- TOOLS WORKBENCH, SNIPPET INJECTOR & DIFF ENGINE ---------- */
+const ed = $('ed');
+let lastSel = null;
+
+function injectSnippet(key) {
+  const snip = SMALI_SNIPPETS[key];
+  if (!snip) return;
+  edHist.push(ed.value);
+  const s = ed.selectionStart || 0;
+  const e = ed.selectionEnd || 0;
+  ed.value = ed.value.slice(0, s) + snip + ed.value.slice(e);
+  ed.focus();
+}
+
+function toolRun(label, promptInstruction) {
+  let s = ed.selectionStart, e = ed.selectionEnd;
+  const hasSel = e > s;
+  const code = hasSel ? ed.value.slice(s, e) : ed.value;
+  if (!code.trim()) {
+    addMsg('error', 'Paste code or text in the Tools editor first, Sir.');
+    show('chat');
+    return;
+  }
+  lastSel = hasSel ? [s, e] : null;
+  proposal = '';
+  $('prop').style.display = 'none';
+  const x = $('extra').value.trim();
+  show('chat');
+  ask(`${promptInstruction}${x ? '\nExtra instruction: ' + x : ''}\n\n\`\`\`\n${code}\n\`\`\``);
+}
+
+function onReply(r) {
+  const m = r.match(/```[^\n]*\n([\s\S]*?)```/);
+  const prevUser = cur?.msgs.at(-2)?.t || '';
+  if (!m || !/(Fix|Optimize|Java ↔ Smali|Polish|Translate|COMPLETE|complete)/.test(prevUser)) return;
+  proposal = m[1].replace(/\n$/, '');
+  showDiff();
+}
+
+function showDiff() {
+  const a = (lastSel ? ed.value.slice(...lastSel) : ed.value).split('\n');
+  const b = proposal.split('\n');
+  if (a.length * b.length > 4e6) {
+    $('diff').textContent = 'Too large to diff; showing proposal.\n' + proposal;
+  } else {
+    const n = a.length, m = b.length;
+    const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--)
+      for (let j = m - 1; j >= 0; j--)
+        L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    let i = 0, j = 0, h = '';
+    const row = (c, p, t) => h += `<div class="${c}">${p} ${esc(t)}</div>`;
+    while (i < n && j < m) {
+      if (a[i] === b[j]) { row('', ' ', a[i]); i++; j++; }
+      else if (L[i + 1][j] >= L[i][j + 1]) row('rm', '-', a[i++]);
+      else row('ad', '+', b[j++]);
+    }
+    while (i < n) row('rm', '-', a[i++]);
+    while (j < m) row('ad', '+', b[j++]);
+    $('diff').innerHTML = h;
+  }
+  $('prop').style.display = 'block';
+  show('tools');
+}
+
+function applyP() {
+  edHist.push(ed.value);
+  ed.value = lastSel ? ed.value.slice(0, lastSel[0]) + proposal + ed.value.slice(lastSel[1]) : proposal;
+  $('prop').style.display = 'none';
+  proposal = '';
+}
+function rejectP() { $('prop').style.display = 'none'; proposal = ''; }
+function edUndo() { if (edHist.length) ed.value = edHist.pop(); }
+
+$('file').onchange = async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (f.size > 5e6) return addMsg('error', 'File too large (>5 MB).');
+  edHist.push(ed.value);
+  ed.value = await f.text();
+};
+
+async function saveFile() {
+  const t = ed.value;
+  const defName = S.mode === 'modding' ? 'edited.smali' : 'notes.md';
+  if (window.showSaveFilePicker) {
+    try {
+      const h = await showSaveFilePicker({ suggestedName: defName });
+      const w = await h.createWritable();
+      await w.write(t);
+      await w.close();
+      return;
+    } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  downloadCode(t, defName);
+}
+
+/* ---------- FLOATING PICTURE-IN-PICTURE ASSISTANT ---------- */
+async function openFloat() {
+  if (!window.documentPictureInPicture) {
+    return addMsg('error', 'Floating window requires desktop Chrome/Edge 116+.');
+  }
+  if (pip) { pip.close(); return; }
+  try {
+    pip = await documentPictureInPicture.requestWindow({ width: 350, height: 280 });
+    const d = pip.document;
+    d.body.style.cssText = 'margin:0;padding:10px;background:#070b14;color:#e4eefb;font:13.5px system-ui';
+    d.body.innerHTML = '<b style="color:#00e5ff;letter-spacing:.1em">JARVIS MINI</b><textarea id=q rows=3 style="width:100%;margin:8px 0;background:#050811;color:inherit;border:1px solid #233559;border-radius:8px;padding:6px;box-sizing:border-box" placeholder="Ask JARVIS…"></textarea><div style="display:flex;gap:6px;flex-wrap:wrap"><button id=a style="background:#00e5ff;color:#000;border:0;border-radius:6px;padding:5px 10px;font-weight:700">Ask</button><button id=s style="background:#131f36;color:#fff;border:1px solid #233559;border-radius:6px;padding:5px 8px">Screen</button><button id=v style="background:#131f36;color:#fff;border:1px solid #233559;border-radius:6px;padding:5px 8px">🎤</button></div><div id=o style="margin-top:8px;font-size:12.5px;max-height:95px;overflow:auto;color:#8499b8"></div>';
+    const q = d.getElementById('q');
+    d.getElementById('a').onclick = () => { if (q.value.trim()) { ask(q.value.trim()); q.value = ''; } };
+    d.getElementById('s').onclick = () => analyzeScreen(q.value.trim() || null);
+    d.getElementById('v').onclick = () => mic(t => q.value = t);
+    const iv = setInterval(() => {
+      if (window._last) d.getElementById('o').textContent = window._last.replace(/```[\s\S]*?```/g, '[code in main window]').slice(0, 400);
+    }, 800);
+    pip.addEventListener('pagehide', () => { clearInterval(iv); pip = null; });
+  } catch (e) {
+    addMsg('error', 'Could not open floating window: ' + e.message);
+  }
+}
+
+/* ---------- SETTINGS & SETUP ---------- */
+function loadSet() {
+  $('kk').value = S.key ? S.key.slice(0, 4) + '••••••••' + S.key.slice(-3) : '';
+  $('cm').textContent = S.model || 'none';
+  $('mode-sel').value = S.mode;
+  $('sp2').checked = S.speak;
+  $('lang').value = S.lang;
+  $('rate').value = S.rate;
+  $('rate-val').textContent = S.rate;
+  $('sps').value = S.style;
+  $('ins').value = S.ins;
+  $('tone').value = S.tone;
+  $('len').value = S.len;
+  $('pref').value = S.pref;
+  $('theme').value = S.theme;
+  fillVoices();
+  updateTelemetryUI();
+}
+
+function fillVoices() {
+  const v = $('vc');
+  if (!v) return;
+  v.innerHTML = '<option value="">System Default Voice</option>';
+  (syn ? syn.getVoices() : []).forEach(x => v.add(new Option(x.name + ' (' + x.lang + ')', x.name)));
+  v.value = S.voice;
+}
+
+function saveSet() {
+  Object.assign(S, {
+    mode: $('mode-sel').value,
+    speak: $('sp2').checked,
+    lang: $('lang').value,
+    rate: $('rate').value,
+    voice: $('vc').value,
+    style: $('sps').value,
+    ins: $('ins').value,
+    tone: $('tone').value,
+    len: $('len').value,
+    pref: $('pref').value,
+    theme: $('theme').value
+  });
+  save();
+  document.body.dataset.t = S.theme;
+  setSpeak(S.speak);
+  applyModeUI();
+  alert('Settings saved, Sir.');
+}
+
+function resetIns() {
+  $('ins').value = S.mode === 'modding' ? INS_MODDING : INS_UNIVERSAL;
+}
+$('theme').onchange = () => document.body.dataset.t = $('theme').value;
+if (syn) syn.onvoiceschanged = fillVoices;
+
+function showSetup(step) {
+  $('setup').classList.add('open');
+  $('s1').style.display = step === 2 ? 'none' : 'block';
+  $('s2').style.display = step === 2 ? 'block' : 'none';
+  if (step === 2) modelList();
+}
+function resetKey() { S.key = ''; S.model = ''; save(); showSetup(1); }
+function openModels() { showSetup(2); fetchModels(); }
+
+async function fetchModels() {
+  $('e2').textContent = 'Loading models…';
+  try { await listModels(); $('e2').textContent = ''; modelList(); }
+  catch (e) { $('e2').textContent = redact(e.message) + ' Tap Refresh to retry.'; }
+}
+
+function modelList() {
+  const q = $('ms').value.toLowerCase();
+  const l = $('ml');
+  l.innerHTML = '';
+  models.filter(m => (m.name + m.displayName).toLowerCase().includes(q)).forEach(m => {
+    const d = document.createElement('div');
+    d.className = 'it' + (sel === m.name ? ' s' : '');
+    d.innerHTML = '<b></b><small></small>';
+    d.firstChild.textContent = m.displayName || m.name;
+    d.lastChild.textContent = m.name + (m.inputTokenLimit ? ' · Context: ' + m.inputTokenLimit.toLocaleString() : '');
+    d.onclick = () => { sel = m.name; modelList(); };
+    l.append(d);
+  });
+}
+$('ms').oninput = modelList;
+$('mr').onclick = fetchModels;
+
+$('vk').onclick = async () => {
+  const k = $('key').value.trim();
+  if (!k) return $('e1').textContent = 'Enter an API key first.';
+  S.key = k;
+  $('e1').textContent = 'Validating key…';
+  $('vk').disabled = true;
+  try {
+    await listModels();
+    $('e1').textContent = '';
+    sel = models.find(m => m.name === S.model) ? S.model : (models.find(m => /flash/.test(m.name)) || models[0]).name;
+    $('key').value = '';
+    showSetup(2);
+  } catch (e) {
+    S.key = '';
+    $('e1').textContent = redact(e.message);
+  } finally {
+    $('vk').disabled = false;
+  }
+};
+
+$('mc').onclick = () => {
+  if (!sel) return $('e2').textContent = 'Select a model first.';
+  S.model = sel;
+  save();
+  $('setup').classList.remove('open');
+  loadSet();
+};
+
+/* ---------- BOOT ---------- */
+document.body.dataset.t = S.theme;
+setSpeak(S.speak);
+applyModeUI();
+updateTaskBadge();
+loadSet();
+newChat();
+if (!S.key || !S.model) showSetup(1);
+</script>
+</body>
+</html>
